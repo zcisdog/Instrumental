@@ -41,7 +41,7 @@ _INST_CLASSES = ['ECC100']
 
 # __all__ = ['LinearStage', 'Goniometer', 'RotationStage', 'ECC100']
 
-lib = oledll.LoadLibrary('ecc.dll')
+lib = oledll.LoadLibrary('C:\\Program Files\\Attocube\\Software_ECC100_v1.7.0\\ECC100_Library\\Win64\\ecc.dll')
 _err_map = {
     -1: 'Unspecified error.',
     1: 'Communication timeout.',
@@ -79,7 +79,7 @@ class EccInfo(Structure):
     _fields_ = [('id', c_int32), ('locked', c_bool)]
 
 
-class Actor(Motion):
+class Actor():
     def __init__(self, controller, axis):
         self._c = controller
         self.axis = axis
@@ -122,7 +122,7 @@ class Actor(Motion):
         amp_in_mV = int(Q_(amplitude).to('mV').magnitude)
         if not (0 <= amp_in_mV <= 45e3):
             raise Exception("Amplitude must be between 0 and 45 V")
-        self._c._controlAmplitude(self.axis, amp_in_mV, set=True)
+        self._c._controlAmplitude(self.axis, str(amp_in_mV)+' mV', set=True)
 
     def get_amplitude(self):
         """ Gets the amplitude of the actuator signal. """
@@ -144,7 +144,7 @@ class Actor(Motion):
         freq_in_mHz = int(Q_(frequency).to('mHz').magnitude)
         if not (1e3 <= freq_in_mHz <= 2e6):
             raise Exception("Frequency must be between 1 Hz and 2 kHz")
-        self._c._controlFrequency(self.axis, freq_in_mHz, set=True)
+        self._c._controlFrequency(self.axis, str(freq_in_mHz)+' mHz', set=True)
 
     def get_frequency(self):
         """ Gets the frequency of the actuator signal. """
@@ -285,7 +285,7 @@ class LinearStage(Actor):
 
 
 class Goniometer(Actor):
-    def __init__(self, device, axis):
+    def _init__(self, device, axis):
         super(Goniometer, self).__init__(device, axis)
         self._pos_units = 'micro radians'
         self._actor_type = ActorType.Goniometer
@@ -316,7 +316,7 @@ class ECC100(Motion):
     """
     Interfaces with the Attocube ECC100 controller. Windows-only.
     """
-    def __init__(self, paramset):
+    def _initialize(self):
         """ Connects to the attocube controller.
 
         id is the id of the device to be connected to
@@ -331,11 +331,11 @@ class ECC100(Motion):
         if num < 1:
             raise Exception("No Devices Detected")
 
-        if 'id' not in paramset:
+        if 'id' not in self._paramset:
             # Attempt to connect to the first device
             self._dev_num = 0
         else:
-            self._dev_num = self._get_dev_num_from_id(int(paramset['id']))
+            self._dev_num = self._get_dev_num_from_id(int(self._paramset['id']))
         self._Connect()
         self._load_actors()
         self._default_actors = self.actors
@@ -734,7 +734,7 @@ class ECC100(Motion):
         actor:  int
             id corresponding to a particular `actor`
         """
-        ret = self._controlActorSelection(axis.value, actor_id, set=True)
+        ret = self._controlActorSelection(axis, actor_id, set=True)
         self._handle_err(ret, func="constrolActorSelection")
 
     @check_enums(axis=Axis)
@@ -742,7 +742,7 @@ class ECC100(Motion):
         """
         Returns the 'actor' property (as an integer) of the specified axis
         """
-        actor = self._controlActorSelection(axis.value, set=False)
+        actor = self._controlActorSelection(axis, set=False)
         return actor
 
     @check_enums(axis=Axis)
@@ -762,9 +762,9 @@ class ECC100(Motion):
         if type(forward)!=bool:
             raise TypeError('forward must be a boolean')
         if forward:
-            self.controlContinuousFwd(axis, control, set=True)
+            self._controlContinuousFwd(axis, control, set=True)
         if not forward:
-            self.controlContinuousBkwd(axis, control, set=True)
+            self._controlContinuousBkwd(axis, control, set=True)
 
     def set_default_actors(self, actors):
         """ Sets the default list of actors used in various functions.
